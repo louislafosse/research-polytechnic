@@ -1,0 +1,15 @@
+% Conclusion
+
+\subsection{Summary}
+
+This research evaluates CPU emulator accuracy for security-relevant corner cases. Through a trait-based testing framework in Rust, we compared eight widely-used x86-64 emulators against native hardware across three fundamental instruction patterns. Our findings show that every tested emulator exhibits behavioral discrepancies, with most failing to detect FPU stack overflow despite its security relevance for exploit development and analysis.
+
+\subsection{Implications}
+
+Security researchers should validate findings on native hardware whenever possible, particularly for boundary conditions involving exception handling or subtle CPU state. Moreover, emulator developers should incorporate these test cases as regression tests, thereby ensuring that accuracy improvements don't regress with future changes. In addition, organizations deploying emulation-based security infrastructure should understand their chosen emulator's limitations and consider multiple emulation strategies for defense-in-depth.
+
+\subsection{Closing Thoughts}
+
+CPU emulation pervades modern security research, from malware sandboxes to cross-architecture exploit development. As demonstrated, this work shows that all emulators have behavioral quirks that can mislead researchers or enable detection by sophisticated adversaries. By providing rigorous evaluation methodology, documented results, and an extensible testing framework, we enable the community to make informed choices and improve emulation accuracy incrementally.
+
+Security infrastructure needs the same rigorous validation we apply to other systems. As emulation becomes increasingly central to security workflows, understanding its limitations and improving its accuracy becomes essential for reliable security research.

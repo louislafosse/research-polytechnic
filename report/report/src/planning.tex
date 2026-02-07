@@ -1,0 +1,19 @@
+% Planning for Next Semester
+
+\subsection{Expanding Test Coverage}
+
+The framework's current three test cases work but barely scratch the surface of CPU behavioral complexity. Over the next semester, we plan to expand coverage to reveal more emulator discrepancies. Priority areas include memory ordering and atomics (LOCK prefix, fence instructions), segment register boundary conditions (particularly FS and GS base address handling), CPUID topology enumeration and feature bit reporting, timer precision measurements, and AVX/AVX2 vector instruction handling with optional AVX-512 support where available.
+
+Adding test cases incrementally allows us to build a comprehensive suite while maintaining quality. Specifically, each new test requires careful analysis of native hardware behavior, implementation across all emulator runners, and documentation of security implications. Consequently, this approach ensures that every test provides actionable information for emulator selection and improvement decisions.
+
+\subsection{Sandsifter Integration}
+
+Beyond manual test case development, we plan to integrate and optimize the Sandsifter x86 fuzzer \cite{domas2017sandsifter}. Remarkably, Sandsifter exhaustively searches the x86 instruction space for undocumented or incorrectly implemented instructions through comprehensive fuzzing of the instruction set to discover hidden behaviors and implementation flaws. Applying this tool to our emulator suite could reveal additional behavioral discrepancies beyond those we've manually identified. In addition, the fuzzer's thorough approach complements our targeted corner case testing, potentially uncovering unexpected instruction interactions or rarely-exercised code paths in emulation engines.
+
+Complementary approaches like afl-unicorn, which combines AFL fuzzing capabilities with Unicorn Engine, show the potential of fuzzing-based emulator testing. While afl-unicorn focuses on fuzzing binaries through emulation, adapting similar coverage-guided techniques to fuzz emulator implementations themselves could nevertheless reveal corner cases missed by manual test development.
+
+\subsection{Upstream Contributions}
+
+Working with open-source emulator maintainers is an important part of improving the broader emulation ecosystem. Specifically, for QEMU TCG, Box64, Icicle, and MWEMU, we aim to contribute patches addressing the missing x87 overflow detection where technically feasible. Similarly, Blink's AF and RDTSCP bugs require targeted fixes that we can provide with proof-of-concept patches demonstrating correct behavior.
+
+The Unicorn Engine vulnerability requires coordinated disclosure following responsible security practices. We're working with maintainers to validate patches for the \texttt{uc\_context\_restore()} validation issue, thereby ensuring the fix addresses the root cause without introducing new problems. Subsequently, following the 90-day embargo, we'll publish technical details and proof-of-concept code to help other Unicorn users assess their risk and apply updates if needed.

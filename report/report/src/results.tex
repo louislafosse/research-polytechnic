@@ -1,0 +1,15 @@
+% Status and Results
+
+\subsection{Experimental Results}
+
+We tested eight emulation environments across three edge case scenarios, using native x86-64 hardware (Intel and AMD processors running Linux) as ground truth. All emulators were tested at their latest stable releases.
+
+The FPU stack overflow test shows a clear pattern. Only Blink correctly implements overflow detection, matching native hardware's 0x3a41 status word. In contrast, QEMU, Box64, and Unicorn all return 0x3800, indicating they fail to set the Invalid Operation and Stack Fault flags. Meanwhile, Icicle returns 0x0000, suggesting no FPU support at all. Additionally, MWEMU and KUBERA handle the overflow differently: MWEMU detects the condition but panics instead of setting flags, while KUBERA does not support FPU instructions.
+
+Conversely, the LAHF flag test shows Blink with a unique bug while other emulators succeed. Native hardware and all emulators except Blink return 0x03, but Blink returns 0x0b. Specifically, the bit pattern difference (00001011 versus 00000011) reveals that Blink incorrectly sets the Auxiliary Flag at bit 4. While the AF flag sees limited use in modern software outside BCD arithmetic, this discrepancy nevertheless enables trivial emulator fingerprinting. In reality, malware can reliably detect Blink execution by performing a simple LAHF test and checking for the anomalous bit pattern.
+
+RDTSCP behavior shows a clear distinction between native hardware and emulation. Native hardware returns non-zero processor IDs through the TSC_AUX register, identifying the current CPU core executing the instruction. In contrast, Blink consistently returns zero for TSC_AUX, thereby failing to implement processor identification. Consequently, this consistent zero return enables fingerprinting where malware can distinguish Blink emulation from native execution by examining processor identification behavior.
+
+\subsection{Discovered Vulnerabilities}
+
+When doing some testing on Unicorn Engine's context management API, we discovered a heap buffer overflow. Specifically, the vulnerability occurs in the context restoration function when handling architectures with differing CPU state sizes. The size calculation uses the source architecture's context size (potentially 80KB for ARM with its extensive register set) but copies this data into a destination buffer allocated for the target architecture, which may be only 4KB for x86. Consequently, this mismatch causes a heap overflow that reliably crashes Unicorn-based applications.

@@ -1,0 +1,15 @@
+% Problems and Opportunities
+
+\subsection{Identified Problems}
+
+Our preliminary investigation shows inconsistencies in how emulators handle edge cases. For instance, for FPU stack overflow, native hardware and Blink correctly detect the condition (returning status 0x3a41), while QEMU, Box64, and Unicorn fail to set the overflow flags (returning 0x3800). Similarly, Blink exhibits an anomalous bug in LAHF flag handling, incorrectly setting the Auxiliary Flag to yield 0x0b instead of the correct 0x03. Additionally, the RDTSCP instruction reveals another discrepancy: native hardware returns non-zero processor IDs through TSC_AUX, while Blink consistently returns zero, thereby enabling trivial emulator detection.
+
+These discrepancies mean no authoritative "ground truth" exists beyond native hardware execution. Consequently, security products that rely on emulators for malware sandboxing operate with blind spots. For example, antivirus systems using QEMU may miss the FPU-based evasion techniques, malware analysis frameworks can be trivially fingerprinted through behavioral testing, and exploit proof-of-concepts developed in emulated environments may fail on actual hardware.
+
+During our testing, we discovered a vulnerability in Unicorn Engine: an 80KB heap buffer overflow triggered by architecture mismatches in context restoration. Significantly, this vulnerability shows that emulators themselves are potential attack surfaces.
+
+\subsection{Research Opportunities}
+
+Creating a comprehensive test suite for CPU emulator edge cases would provide a reproducible methodology for comparing emulators and enable automated testing across versions. Evidently, such a framework would give security researchers evidence-based guidance for choosing appropriate emulators, whether for malware analysis, exploit development, or fingerprint detection.
+
+For emulator developers, comprehensive test cases would enable regression testing and help prioritize which behaviors require fixing. Beyond this, our vulnerability discovery methodology can be applied beyond x86-64 to other architectures like ARM and RISC-V, potentially uncovering similar issues in their respective emulation frameworks. Importantly, no existing research evaluates emulator accuracy for security-relevant CPU behaviors, thereby making this work valuable for practitioners choosing tools, developers improving implementations, and organizations deploying emulation-based security infrastructure.

@@ -1,0 +1,19 @@
+% Project Overview and Architecture
+
+\subsection{Framework Design}
+
+Our testing framework addresses the challenge of comparing emulator behaviors while accommodating their diverse interfaces and implementations. Specifically, the design uses three principles: trait-based abstraction provides a common interface while supporting emulator-specific implementations, modular separation decouples test cases from emulator runners and analysis logic, and deterministic test cases ensure reproducibility.
+
+The core abstraction is the \texttt{EmulatorRunner} trait, defining methods for instantiating an emulator, executing shellcode with instruction limits, reading register values, and identifying the emulator. This design allows writing generic tests that work across all conforming implementations, thereby isolating emulator-specific details behind the trait boundary.
+
+We developed three fundamental test patterns examining behaviors often misimplemented in emulation. For instance, the FPU stack overflow test pushes nine values onto an eight-register stack to verify exception handling. Meanwhile, the LAHF flag test examines whether auxiliary flag bits are set correctly after operations. In addition, the RDTSCP test reads the timestamp counter and processor ID to check if emulators properly model processor identification. Each test includes not just shellcode but documentation of expected results from native hardware and analysis of security relevance.
+
+Emulator implementations range from direct native execution (establishing ground truth) to subprocess invocation for tools like Blink and QEMU, to FFI bindings for libraries like Unicorn and Icicle. As expected, each implementation must handle its particular quirks. For instance, Blink returns results through exit codes, QEMU lacks direct register access, Box64 requires pseudo-terminal environments, and Unicorn needs careful memory mapping. Subsequently, the analysis engine compares all emulator results against native hardware, categorizing discrepancies and documenting their security implications.
+
+\subsection{Test Case Implementation}
+
+The FPU stack overflow test executes eight \texttt{fldz} instructions to fill the FPU register stack, then attempts a ninth push. On hardware, this triggers both the Invalid Operation and Stack Fault flags, thereby yielding a status word of 0x3a41. The test reads this status using \texttt{fstsw ax} and returns it in RAX. This behavior matters because exploits may rely on FPU exceptions to detect buffer overflows or manipulate heap metadata through controlled exception handling.
+
+The LAHF flag test performs a simple operation sequence: clear the AL register with \texttt{xor al, al}, execute \texttt{lahf} to load flags into AH, then zero-extend AH to RAX for return. The expected value of 0x03 reflects the reserved bit 1 being set while other flags remain clear. Importantly, deviations from this pattern enable emulator fingerprinting, as malware can detect it's running in an analyzed environment by checking for known flag discrepancies.
+
+The RDTSCP test reads both the timestamp counter and the TSC\_AUX register, which contains processor identification information. Native hardware returns non-zero values identifying the current CPU core, whereas Blink consistently returns zero for TSC\_AUX. Consequently, this discrepancy allows reliable fingerprinting of emulated execution environments.

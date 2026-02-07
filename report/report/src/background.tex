@@ -1,0 +1,29 @@
+% Background and Concepts
+
+\subsection{x86-64 Architecture Fundamentals}
+
+The x86-64 architecture (also called AMD64 or Intel 64) extends the 32-bit x86 instruction set with 64-bit addressing and additional features. Three specific aspects matter for this research:
+
+\subsubsection{x87 Floating Point Unit (FPU)}
+
+The x87 FPU provides hardware floating-point arithmetic using an 8-register stack architecture, with registers labeled ST(0) through ST(7). Unlike general-purpose registers, the FPU operates in a stack-based manner where operations push and pop values on a circular stack. Specifically, the 16-bit FPU Status Word register tracks the unit's state, including critical flags such as the Invalid Exception bit (IE, bit 0) indicating invalid arithmetic operations, the Stack Fault bit (SF, bit 6) detecting stack overflow or underflow, condition codes C0-C3 for comparison results, and the TOP field (bits 11-13) pointing to the current top-of-stack position.
+
+When a program attempts to push a ninth value onto the 8-register stack, the hardware sets both the IE and SF flags to signal the overflow condition. Importantly, this behavior has security implications. The CVE-2018-3665 \cite{cve2018-3665} vulnerability, known as "Lazy FPU State Restore," exploited FPU state handling for side-channel attacks, demonstrating that precise FPU behavior modeling is a security requirement, not merely an implementation detail.
+
+\subsubsection{EFLAGS Register and LAHF Instruction}
+
+The EFLAGS register contains CPU status and control flags. The LAHF (Load AH with Flags) instruction copies the low 8 bits into the AH register, thereby preserving flags in a format compatible with older 8086 processors. The bit layout includes the Sign Flag (bit 7), Zero Flag (bit 6), Auxiliary Carry flag (bit 4), Parity Flag (bit 2), and Carry Flag (bit 0), with reserved bits at positions 5, 3, and 1.
+
+The Auxiliary Flag needs particular attention as it indicates carry or borrow between bits 3 and 4, primarily used for Binary Coded Decimal (BCD) arithmetic. While BCD operations are rare in modern software, incorrect AF behavior can break legacy BCD code or enable emulator fingerprinting, where malware detects it's running in an emulated environment by checking for known discrepancies in flag handling.
+
+\subsubsection{RDTSCP and Time Stamp Counter}
+
+The RDTSCP instruction (Read Time-Stamp Counter and Processor ID) returns both a 64-bit cycle counter in the EDX:EAX register pair and a processor identifier in ECX from the TSC\_AUX model-specific register (MSR 0xC0000103). The monotonically increasing timestamp enables precise performance measurement, while the TSC\_AUX value identifies which CPU core is executing, thereby supporting NUMA node affinity and thread-specific data structures. In fact, this processor identification capability makes RDTSCP particularly relevant for security research, as emulators that fail to implement TSC\_AUX properly can be trivially fingerprinted.
+
+\subsection{Emulation Techniques}
+
+Modern CPU emulators employ several fundamental approaches to translate guest instructions to host execution. For instance, binary translation, exemplified by QEMU's Tiny Code Generator (TCG), translates guest instructions to an intermediate representation before generating host-native code. This approach offers broad cross-architecture support and reasonable performance, though the complexity of modeling every architectural detail makes perfect emulation practically impossible.
+
+Hardware-assisted virtualization leverages CPU features like Intel VT-x and AMD-V to execute guest code directly under hypervisor supervision. While this achieves near-native performance, it requires matching architectures and provides limited control over CPU state compared to software emulation. Meanwhile, Just-In-Time compilation is a hybrid approach, compiling frequently-executed code paths to native code for performance while interpreting cold paths, though this introduces startup overhead and implementation complexity.
+
+Each technique involves fundamental trade-offs between performance, accuracy, and implementation complexity, with security implications arising primarily from the approximations necessary to make emulation practical.

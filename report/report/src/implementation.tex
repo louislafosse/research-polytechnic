@@ -1,0 +1,13 @@
+% Implementation and Technical Challenges
+
+\subsection{Implementation Challenges}
+
+Implementing runners for diverse emulators reveals fundamental differences in how they expose execution capabilities. For instance, native hardware execution required mapping executable memory pages and casting shellcode buffers to function pointers, a straightforward approach that nonetheless must contend with W\^{}X security policies that prevent simultaneous write and execute permissions. We addressed this using \texttt{memfd\_create} and \texttt{fexecve} to create properly-permissioned executable regions while isolating potentially-crashing shellcode in subprocesses.
+
+Blink and QEMU create a different challenge. They execute complete binaries and communicate results through exit codes. This works acceptably for small return values but truncates 64-bit results, thereby forcing us to design test cases that return meaningful data in the lower eight bits. In fact, we discovered Blink's Auxiliary Flag bug through this process. The emulator consistently returned 0x0b instead of the expected 0x03, thus revealing an implementation error in its flag handling logic.
+
+Box64 introduced an unexpected requirement: proper execution demands a pseudo-terminal environment. Without PTY support, Box64 either hangs indefinitely or produces incorrect results.
+
+Unicorn Engine, despite providing the most control through its C library API, had the most serious issue. During testing of context save and restore functionality, we triggered an 80KB heap buffer overflow caused by architecture mismatches. Specifically, the context size calculation uses the source architecture (potentially ARM with large context structures), but copies into a destination buffer sized for a different architecture (x86 with smaller structures).
+
+Each emulator implementation reveals something about the inherent complexity of accurate CPU emulation. For instance, Icicle's limited instruction support meant some tests couldn't execute at all. Moreover, QEMU's TCG, used by derivative projects like Unicorn, propagates bugs across implementations. As it turns out, the FPU overflow detection failure appears in QEMU, Box64, and Unicorn, though each implements the x87 FPU independently, thereby suggesting this is a commonly overlooked edge case rather than shared code.

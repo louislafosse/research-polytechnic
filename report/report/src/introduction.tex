@@ -1,0 +1,23 @@
+% Introduction
+
+\subsection{Motivation}
+
+CPU emulators are widely used in modern computing, enabling cross-architecture execution, security research, and binary analysis. In particular, they power malware sandboxes, enable ARM devices to run x86 applications, and provide controlled environments for vulnerability research. However, emulators implement complex CPU behaviors through approximation, thereby potentially introducing behavioral discrepancies that have security implications.
+
+Current emulator testing focuses primarily on functional correctness, checking whether programs execute without crashing. Nevertheless, this approach misses corner cases, the subtle architectural behaviors that occur under unusual conditions. These boundary conditions matter for security research, where exploits often rely on precise CPU behavior \cite{chen2018anti}. Consequently, emulator mismatches cause false negatives in security testing, where malicious behavior goes undetected because the emulated environment fails to trigger the same conditions as native hardware. Moreover, these discrepancies enable anti-emulation techniques, fingerprinting, and sandbox escaping. The CVE-2021-44078 vulnerability exemplifies this risk, where a memory management flaw in Unicorn Engine allowed sandbox escape \cite{cve2021-44078}.
+
+When emulators don't accurately model corner cases, security researchers may miss vulnerabilities or develop exploits that fail on real hardware. In reality, modern malware actively exploits behavioral differences between emulators and hardware to detect analysis environments and alter behavior accordingly. Additionally, beyond behavioral inaccuracies, emulators themselves are attack surfaces.
+
+The 2015 ESET vulnerability demonstrated how implementation flaws in an antivirus emulator allowed remote root compromise through crafted files \cite{ormandy2015eset}, showing that security products relying on emulation can become vectors for attack. Even legitimate applications depending on specific CPU features may malfunction silently in emulated environments, leading to false test results that undermine the entire purpose of testing in emulation.
+
+\subsection{Research Problem}
+
+Despite widespread emulator usage, no comprehensive evaluation exists for security-relevant corner cases. In particular, the security research community lacks detailed benchmarks comparing emulator accuracy on boundary conditions, proper documentation of emulator-specific limitations and bugs, and evidence-based guidelines for selecting appropriate emulators for security work. There is no established methodology for discovering vulnerabilities in the emulation frameworks themselves.
+
+\subsection{Contributions}
+
+This research presents a test suite for x86-64 emulator corner cases, focusing on security-relevant behaviors. Through comparative analysis of eight widely-used emulators across three fundamental instruction patterns, we discovered previously unknown bugs including unhandled flags in FPU stack overflow, Blink's auxiliary flag error and an architecture mismatch vulnerability in Unicorn Engine. Our extensible framework enables future research on additional CPU boundary behaviors while providing practical, evidence-based guidance for emulator selection in security research contexts.
+
+\subsection{Report Structure}
+
+The remainder of this report provides background on CPU architecture fundamentals and emulation techniques, surveys existing emulators and testing approaches, and identifies current gaps and research opportunities. We then describe our framework design and the technical challenges encountered during implementation, before presenting our experimental findings and their security implications. The report concludes with a discussion of future work and broader impact.

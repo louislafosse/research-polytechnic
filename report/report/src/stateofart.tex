@@ -1,0 +1,15 @@
+% State of the Art
+
+\subsection{Existing Emulators}
+
+The emulator landscape spans diverse implementations targeting different use cases. In particular, QEMU is the de facto standard for system emulation, employing its Tiny Code Generator for binary translation. Its user-mode variant allows running single binaries without full system emulation, thereby making it popular in cross-compilation workflows and security research despite its complex codebase and performance overhead.
+
+Blink, developed by Justine Tunney, takes a different approach by focusing on fast x86-64 binary translation for running Linux, Windows, and macOS binaries with emphasis on portability and simplicity. However, it's limited to x86-64 hosts. Meanwhile, Box64 targets a specialized niche, enabling x86-64 binaries on ARM64 systems like Raspberry Pi and Apple Silicon, which is particularly important for running games and proprietary x86 applications on ARM-based systems.
+
+For security research specifically, Unicorn Engine provides a lightweight multi-architecture emulator based on QEMU but designed for fine-grained control over CPU state and memory. In contrast, Icicle represents a newer approach emphasizing performance through JIT compilation, though it currently supports a more limited instruction set.
+
+\subsection{Testing Methodologies}
+
+Current approaches to emulator validation focus predominantly on functional testing—verifying that programs execute correctly through CPU stress tests, application compatibility suites, and standard benchmarks like SPEC CPU. Performance benchmarking complements this by measuring execution speed, throughput, and latency. However, neither approach systematically evaluates the correctness of subtle CPU behaviors that occur under unusual conditions.
+
+Security-focused testing remains fragmented. Some research documents anti-emulation techniques used by malware, and occasional papers explore vulnerabilities in specific emulators. For example, projects like afl-unicorn combine AFL fuzzing with Unicorn Engine for targeted binary fuzzing, showing interest in leveraging emulation for security testing. Nevertheless, this gap means that emulator developers lack regression tests for subtle behaviors, and security practitioners lack evidence-based guidance for choosing appropriate emulation tools.
