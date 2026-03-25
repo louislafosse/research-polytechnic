@@ -1,68 +1,179 @@
-use iced_x86::{self, Formatter};
+use std::ptr;
 
-/// Generate shellcode that detects FPU stack faults
+use iced_x86;
+use iced_x86::code_asm::{
+    CodeAssembler, ah, al, ax, dword_ptr, eax, ecx, rax, rcx, rdx, rsp, word_ptr, xmm0,
+};
+
+fn assemble64<F>(build: F) -> Result<Vec<u8>, iced_x86::IcedError>
+where
+    F: FnOnce(&mut CodeAssembler) -> Result<(), iced_x86::IcedError>,
+{
+    let mut a = CodeAssembler::new(64)?;
+    build(&mut a)?;
+    a.assemble(0)
+}
+
+/// Generate shellcode that detects FPU stack faults and stores the status word.
 pub fn generate_shellcode_fpu_sf(result_ptr: u64) -> Result<Vec<u8>, iced_x86::IcedError> {
-    let mut a = iced_x86::code_asm::CodeAssembler::new(64)?;
-    
-    // Create label for result pointer storage
-    let mut store_result = a.create_label();
-    
-    // Prolog - save registers
-    a.push(iced_x86::code_asm::rax)?;
-    a.push(iced_x86::code_asm::rcx)?;
-
-    // NOP sled for stability
-    a.nop()?;
-    a.nop()?;
-    a.nop()?;
-    a.nop()?;
-    
-    // Initialize FPU
-    a.finit()?;
-    
-    // Push 9 values onto FPU stack (should cause overflow)
-    a.fld1()?; // 1
-    a.fld1()?; // 2
-    a.fld1()?; // 3
-    a.fld1()?; // 4
-    a.fld1()?; // 5
-    a.fld1()?; // 6
-    a.fld1()?; // 7
-    a.fld1()?; // 8
-    a.fld1()?; // 9 - This should trigger stack overflow
-    
-    // Get FPU status word
-    a.fstsw(iced_x86::code_asm::ax)?;
-    
-    // Store result at the given pointer
-    a.mov(iced_x86::code_asm::rcx, result_ptr)?;
-    a.test(iced_x86::code_asm::rcx, iced_x86::code_asm::rcx)?; // Check if pointer is valid
-    a.jz(store_result)?; // Jump if zero (null pointer)
-    a.mov(iced_x86::code_asm::word_ptr(iced_x86::code_asm::rcx), iced_x86::code_asm::ax)?; // Store FPU status
-
-    a.set_label(&mut store_result)?;
-    
-    // Epilog - restore registers
-    a.pop(iced_x86::code_asm::rcx)?;
-    a.pop(iced_x86::code_asm::rax)?;
-    a.ret()?;
-    
-    // Assemble to bytes
-    Ok(a.assemble(0x0)?)
+    assemble64(|a| {
+        a.push(rax)?;
+        a.push(rcx)?;
+        a.nop()?;
+        a.nop()?;
+        a.nop()?;
+        a.nop()?;
+        a.finit()?;
+        for _ in 0..9 {
+            a.fld1()?;
+        }
+        a.fstsw(ax)?;
+        a.mov(rcx, result_ptr)?;
+        a.test(rcx, rcx)?;
+        let mut done = a.create_label();
+        a.jz(done)?;
+        a.mov(word_ptr(rcx), ax)?;
+        a.set_label(&mut done)?;
+        a.pop(rcx)?;
+        a.pop(rax)?;
+        a.ret()?;
+        Ok(())
+    })
 }
 
-/// Disassemble shellcode and print it
-pub fn disassemble(shellcode: &[u8], base_address: u64) {
-    let mut decoder = iced_x86::Decoder::with_ip(64, shellcode, base_address, iced_x86::DecoderOptions::NONE);
-    let mut formatter = iced_x86::NasmFormatter::new();
-    let mut output = String::new();
-    
-    while decoder.can_decode() {
-        let instr = decoder.decode();
-        output.clear();
-        formatter.format(&instr, &mut output);
-        println!("   {:016X} {}", instr.ip(), output);
+pub fn shellcode_fpu_overflow_status() -> Result<Vec<u8>, iced_x86::IcedError> {
+    assemble64(|a| {
+        a.finit()?;
+        for _ in 0..9 {
+            a.fld1()?;
+        }
+        a.fstsw(ax)?;
+        a.ret()?;
+        Ok(())
+    })
+}
+
+pub fn shellcode_lahf_flags() -> Result<Vec<u8>, iced_x86::IcedError> {
+    assemble64(|a| {
+        a.xor(eax, eax)?;
+        a.add(al, 127)?;
+        a.stc()?;
+        a.lahf()?;
+        a.movzx(eax, ah)?;
+        a.ret()?;
+        Ok(())
+    })
+}
+
+pub fn shellcode_rdtscp_aux() -> Result<Vec<u8>, iced_x86::IcedError> {
+    assemble64(|a| {
+        a.rdtscp()?;
+        a.mov(eax, ecx)?;
+        a.ret()?;
+        Ok(())
+    })
+}
+
+pub fn shellcode_tsc_monotonic() -> Result<Vec<u8>, iced_x86::IcedError> {
+    assemble64(|a| {
+        a.rdtsc()?;
+        a.shl(rdx, 32)?;
+        a.or(rax, rdx)?;
+        a.mov(rcx, rax)?;
+        a.rdtsc()?;
+        a.shl(rdx, 32)?;
+        a.or(rax, rdx)?;
+        a.cmp(rax, rcx)?;
+        a.setg(al)?;
+        a.movzx(eax, al)?;
+        a.ret()?;
+        Ok(())
+    })
+}
+
+pub fn shellcode_x87_empty_fstp() -> Result<Vec<u8>, iced_x86::IcedError> {
+    assemble64(|a| {
+        a.sub(rsp, 8)?;
+        a.fninit()?;
+        a.fstp(dword_ptr(rsp))?;
+        a.fstsw(ax)?;
+        a.add(rsp, 8)?;
+        a.ret()?;
+        Ok(())
+    })
+}
+
+pub fn shellcode_mxcsr_round_down() -> Result<Vec<u8>, iced_x86::IcedError> {
+    assemble64(|a| {
+        a.sub(rsp, 16)?;
+        a.stmxcsr(dword_ptr(rsp))?;
+        a.mov(eax, dword_ptr(rsp))?;
+        a.and(eax, 0xffff9fffu32)?;
+        a.or(eax, 0x2000)?;
+        a.mov(dword_ptr(rsp + 4), eax)?;
+        a.ldmxcsr(dword_ptr(rsp + 4))?;
+        a.mov(dword_ptr(rsp + 8), 0x3ff33333u32)?;
+        a.movss(xmm0, dword_ptr(rsp + 8))?;
+        a.cvtss2si(eax, xmm0)?;
+        a.ldmxcsr(dword_ptr(rsp))?;
+        a.add(rsp, 16)?;
+        a.ret()?;
+        Ok(())
+    })
+}
+
+pub fn shellcode_sldt() -> Result<Vec<u8>, iced_x86::IcedError> {
+    assemble64(|a| {
+        a.sldt(ax)?;
+        a.ret()?;
+        Ok(())
+    })
+}
+
+pub fn shellcode_str() -> Result<Vec<u8>, iced_x86::IcedError> {
+    assemble64(|a| {
+        a.str(ax)?;
+        a.ret()?;
+        Ok(())
+    })
+}
+
+pub fn shellcode_smsw() -> Result<Vec<u8>, iced_x86::IcedError> {
+    assemble64(|a| {
+        a.smsw(ax)?;
+        a.ret()?;
+        Ok(())
+    })
+}
+
+pub fn run_natively_return_rax(shellcode: &[u8]) -> Result<u64, Box<dyn std::error::Error>> {
+    let page_size = 4096usize;
+    let len = shellcode.len().max(1).div_ceil(page_size) * page_size;
+    let ptr = unsafe {
+        libc::mmap(
+            ptr::null_mut(),
+            len,
+            libc::PROT_READ | libc::PROT_WRITE | libc::PROT_EXEC,
+            libc::MAP_PRIVATE | libc::MAP_ANONYMOUS,
+            -1,
+            0,
+        )
+    };
+
+    if ptr == libc::MAP_FAILED {
+        return Err("native shellcode mmap failed".into());
     }
-    println!();
-}
 
+    let result = unsafe {
+        ptr::copy_nonoverlapping(shellcode.as_ptr(), ptr.cast::<u8>(), shellcode.len());
+        let func: unsafe extern "C" fn() -> u64 = std::mem::transmute(ptr);
+        func()
+    };
+
+    let unmap_rc = unsafe { libc::munmap(ptr, len) };
+    if unmap_rc != 0 {
+        return Err("native shellcode munmap failed".into());
+    }
+
+    Ok(result)
+}

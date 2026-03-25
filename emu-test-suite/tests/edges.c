@@ -55,24 +55,10 @@ int main() {
         printf("   SUSPICIOUS: TSC_AUX always zero (emulated)\n");
     }
     
-    // Test 2: CPUID extended leaves
-    printf("\n[2] Extended CPUID:\n");
     uint32_t eax, ebx, ecx, edx;
-    cpuid(0x80000000, 0, &eax, &ebx, &ecx, &edx);
-    printf("   Max extended leaf: 0x%x\n", eax);
-    if (eax >= 0x80000004) {
-        char brand[49] = {0};
-        cpuid(0x80000002, 0, (uint32_t*)&brand[0], (uint32_t*)&brand[4], 
-              (uint32_t*)&brand[8], (uint32_t*)&brand[12]);
-        cpuid(0x80000003, 0, (uint32_t*)&brand[16], (uint32_t*)&brand[20],
-              (uint32_t*)&brand[24], (uint32_t*)&brand[28]);
-        cpuid(0x80000004, 0, (uint32_t*)&brand[32], (uint32_t*)&brand[36],
-              (uint32_t*)&brand[40], (uint32_t*)&brand[44]);
-        printf("   CPU Brand: %s\n", brand);
-    }
-    
-    // Test 3: x87 FPU status word edge cases
-    printf("\n[3] x87 FPU Edge Cases:\n");
+
+    // Test 2: x87 FPU status word edge cases
+    printf("\n[2] x87 FPU Edge Cases:\n");
     uint16_t fpu_status, fpu_control;
     __asm__ __volatile__(
         "fninit\n"
@@ -95,15 +81,15 @@ int main() {
     );
     printf("   Denormal * Denormal: %e\n", result);
     
-    // Test 4: FS/GS segment registers
-    printf("\n[4] Segment Registers:\n");
+    // Test 3: FS/GS segment registers
+    printf("\n[3] Segment Registers:\n");
     uint64_t fs_base, gs_base;
     __asm__ __volatile__("mov %%fs, %0" : "=r"(fs_base));
     __asm__ __volatile__("mov %%gs, %0" : "=r"(gs_base));
     printf("   FS: 0x%lx, GS: 0x%lx\n", fs_base, gs_base);
     
-    // Test 5: Memory fence instructions
-    printf("\n[5] Memory Fence Tests:\n");
+    // Test 4: Memory fence instructions
+    printf("\n[4] Memory Fence Tests:\n");
     volatile int test_var = 0;
     uint64_t before = rdtsc();
     __asm__ __volatile__("mfence" ::: "memory");
@@ -116,8 +102,8 @@ int main() {
     printf("   LFENCE: %lu cycles\n", after_lfence - after_mfence);
     printf("   SFENCE: %lu cycles\n", after_sfence - after_lfence);
     
-    // Test 6: PAUSE instruction (for spinlocks)
-    printf("\n[6] PAUSE Instruction:\n");
+    // Test 5: PAUSE instruction (for spinlocks)
+    printf("\n[5] PAUSE Instruction:\n");
     before = rdtsc();
     for (int i = 0; i < 10; i++) {
         __asm__ __volatile__("pause");
@@ -125,16 +111,16 @@ int main() {
     uint64_t after = rdtsc();
     printf("   10 PAUSE instructions: %lu cycles\n", after - before);
     
-    // Test 7: PREFETCH instructions
-    printf("\n[7] PREFETCH Tests:\n");
+    // Test 6: PREFETCH instructions
+    printf("\n[6] PREFETCH Tests:\n");
     char buffer[4096];
     before = rdtsc();
     __asm__ __volatile__("prefetchnta (%0)" :: "r"(buffer) : "memory");
     after = rdtsc();
     printf("   PREFETCHNTA: %lu cycles\n", after - before);
     
-    // Test 8: CLFLUSH (cache line flush)
-    printf("\n[8] CLFLUSH Test:\n");
+    // Test 7: CLFLUSH (cache line flush)
+    printf("\n[7] CLFLUSH Test:\n");
     fault_caught = 0;
     if (setjmp(fault_buf) == 0) {
         before = rdtsc();
@@ -145,8 +131,8 @@ int main() {
         printf("   CLFLUSH: FAULT (sig=%d)\n", fault_caught);
     }
     
-    // Test 9: Atomic operations timing
-    printf("\n[9] Atomic Operations:\n");
+    // Test 8: Atomic operations timing
+    printf("\n[8] Atomic Operations:\n");
     volatile long atomic_val = 0;
     before = rdtsc();
     for (int i = 0; i < 1000; i++) {
@@ -156,16 +142,16 @@ int main() {
     printf("   1000 LOCK INC: %lu cycles (%.2f/op)\n", after - before, 
            (double)(after - before) / 1000);
     
-    // Test 10: XCHG (implicit lock)
-    printf("\n[10] XCHG Test:\n");
+    // Test 9: XCHG (implicit lock)
+    printf("\n[9] XCHG Test:\n");
     long val1 = 42, val2 = 99;
     before = rdtsc();
     __asm__ __volatile__("xchg %0, %1" : "+r"(val1), "+m"(val2));
     after = rdtsc();
     printf("   XCHG: %lu cycles\n", after - before);
     
-    // Test 11: Self-modifying code
-    printf("\n[11] Self-Modifying Code:\n");
+    // Test 10: Self-modifying code
+    printf("\n[10] Self-Modifying Code:\n");
     fault_caught = 0;
     if (setjmp(fault_buf) == 0) {
         // Create executable buffer
@@ -189,8 +175,8 @@ int main() {
         printf("   Self-modification: FAULT (sig=%d)\n", fault_caught);
     }
     
-    // Test 12: BTR/BTS/BTC (bit manipulation)
-    printf("\n[12] Bit Test Instructions:\n");
+    // Test 11: BTR/BTS/BTC (bit manipulation)
+    printf("\n[11] Bit Test Instructions:\n");
     uint64_t bits = 0;
     before = rdtsc();
     __asm__ __volatile__("bts $5, %0" : "+r"(bits));
@@ -199,8 +185,8 @@ int main() {
     after = rdtsc();
     printf("   BTS/BTR operations: %lu cycles, result: 0x%lx\n", after - before, bits);
     
-    // Test 13: CPUID timing variation
-    printf("\n[13] CPUID Timing Consistency:\n");
+    // Test 12: CPUID timing variation
+    printf("\n[12] CPUID Timing Consistency:\n");
     uint64_t cpuid_times[10];
     for (int i = 0; i < 10; i++) {
         before = rdtsc();
@@ -223,8 +209,8 @@ int main() {
         printf("   SUSPICIOUS: Too consistent (emulated)\n");
     }
     
-    // Test 14: REP prefix behavior
-    printf("\n[14] REP Prefix Test:\n");
+    // Test 13: REP prefix behavior
+    printf("\n[13] REP Prefix Test:\n");
     char src[1024], dst[1024];
     memset(src, 0xAA, sizeof(src));
     before = rdtsc();
@@ -239,8 +225,8 @@ int main() {
     after = rdtsc();
     printf("   REP MOVSB (1024 bytes): %lu cycles\n", after - before);
     
-    // Test 15: LAHF/SAHF (legacy flag access)
-    printf("\n[15] LAHF/SAHF Test:\n");
+    // Test 14: LAHF/SAHF (legacy flag access)
+    printf("\n[14] LAHF/SAHF Test:\n");
     uint8_t flags_uninitialized, flags_controlled;
     uint32_t tmp;
     

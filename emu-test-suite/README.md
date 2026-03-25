@@ -36,8 +36,11 @@ PATH="/root/.cargo/bin:${PATH}"
 ## Running
 
 ```bash
-cargo run
+cargo run --release
 ```
+
+
+
 
 ## Contribute
 
