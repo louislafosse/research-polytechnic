@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/louislafosse/research-polytechnic/compare/v1.1.0...v1.2.0) (2026-06-17)
+
+
+### Features
+
+* **ci:** build and release S1 and S2 reports and slides ([1110057](https://github.com/louislafosse/research-polytechnic/commit/1110057934f558ab202e3ee61be0021eee5fe1c2))
+
 # [1.1.0](https://github.com/louislafosse/research-polytechnic/compare/v1.0.0...v1.1.0) (2026-03-27)
 
 
