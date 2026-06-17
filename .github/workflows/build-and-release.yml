@@ -1,4 +1,4 @@
-name: Build LaTeX Documents and Release
+name: Build LaTeX Documents and Release PDFs
 
 on:
   push:
