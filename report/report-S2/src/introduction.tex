@@ -1,0 +1,23 @@
+% Introduction
+
+\subsection{Motivation}
+
+CPU emulators are widely used in modern computing, enabling cross-architecture execution, security research, malware analysis, and binary instrumentation. In particular, they provide controlled environments where suspicious code can be executed without directly trusting it on production systems. However, emulators implement complex CPU behavior through approximation, thereby potentially introducing behavioral discrepancies that have security implications.
+
+Current emulator testing often focuses on whether regular programs run correctly. Nevertheless, this approach misses corner cases: subtle architectural behaviors involving status flags, exception delivery, floating-point state, timestamp counters, descriptor tables, and instruction decoding. These boundary conditions matter for security research, where exploits and anti-analysis techniques can rely on precise CPU behavior \cite{chen2018anti}. Consequently, an emulator mismatch can produce false negatives in malware analysis or cause exploit experiments to pass in the emulator but fail on native hardware.
+
+In reality, emulator differences are useful both to defenders and attackers. Defenders need to understand the limitations of their tools, while malware can use the same differences to detect sandboxed execution. Moreover, emulators themselves are software attack surfaces. Prior vulnerabilities such as CVE-2021-44078 in Unicorn Engine \cite{cve2021-44078} and the ESET emulator vulnerability reported by Project Zero \cite{ormandy2015eset} show that emulation infrastructure must be evaluated as security-critical code, not merely as a convenience layer.
+
+\subsection{Research Problem}
+
+Despite widespread emulator usage, the security research community still lacks compact and reproducible benchmarks for security-relevant CPU corner cases. In particular, there is limited documentation comparing emulator behavior against native x86-64 hardware on exact fault delivery, x87 status words, SSE alignment behavior, MXCSR rounding, or machine-state instructions. Furthermore, targeted tests are not enough by themselves: unknown emulator divergences require a discovery workflow capable of searching the instruction space more broadly.
+
+\subsection{Contributions}
+
+This semester extends the project in two directions. First, it expands the deterministic edge-case suite with additional probes and a clearer comparison split between Linux user-mode emulators and shellcode-oriented emulator backends. Specifically, it documents native reference values and compares Blink, QEMU TCG, Box64, Icicle, Unicorn, MWEMU, and KUBERA against those values where each backend model is applicable.
+
+Second, it introduces \texttt{sandsifter\_rs}, a safe-first Rust MVP inspired by the original Sandsifter x86 instruction fuzzer \cite{domas2017sandsifter}. This tool generates candidate byte sequences, executes them under native hardware and emulator backends, groups anomalies, logs rare instruction hits, and supports random, brute-force, tunnel, and mutation-driven search modes. In practice, the deterministic suite provides strong correctness evidence, while \texttt{sandsifter\_rs} provides a way to discover new candidates for future deterministic tests.
+
+\subsection{Report Structure}
+
+The remainder of this report provides background on CPU behaviors relevant to the current probes, surveys the emulator and fuzzing landscape, and identifies the remaining problems and opportunities. It then describes the updated project architecture and implementation challenges before presenting current comparison results and practical takeaways. The report concludes with a plan for reducing fuzzing findings into stable tests and expanding emulator accuracy coverage.

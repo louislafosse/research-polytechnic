@@ -1,0 +1,31 @@
+% Background and Concepts
+
+\subsection{x86-64 Architecture Fundamentals}
+
+The x86-64 architecture (also called AMD64 or Intel 64) extends the 32-bit x86 instruction set with 64-bit addressing and a large set of legacy and modern execution features \cite{intel2023manual}. For this project, the most important behaviors are not normal arithmetic operations but boundary cases where the processor must update architectural state exactly.
+
+\subsubsection{x87 Floating Point Unit}
+
+The x87 FPU provides hardware floating-point arithmetic using an 8-register stack architecture, with registers labeled ST(0) through ST(7). The 16-bit FPU Status Word tracks state such as the Invalid Operation bit, Stack Fault bit, condition-code bits, and the TOP field. When a program pushes a ninth value onto the stack, native hardware sets a specific status-word pattern. Similarly, when a program pops from an empty x87 stack, the processor sets invalid-operation and stack-fault related bits.
+
+These details are easy to simplify in emulators, but they matter because software can observe the exact status word. In the current native baseline, FPU stack overflow returns \texttt{0x3a41}, while empty \texttt{FSTP} returns \texttt{0x0841}. Therefore, x87 tests are strong probes for whether an emulator models more than just ordinary floating-point arithmetic.
+
+\subsubsection{Flags, Faults, and Timestamp Instructions}
+
+The EFLAGS register contains CPU status and control flags. The \texttt{LAHF} instruction copies low flag bits into AH, including the Auxiliary Flag and reserved bits. Because the expected native value in the current probe is compact (\texttt{0x03}), even a small discrepancy becomes an effective fingerprint.
+
+Exception behavior is equally important. Signed division overflow through \texttt{IDIV} should raise \texttt{SIGFPE}, while an aligned SSE load such as \texttt{MOVDQA} should fault when pointed at unaligned memory. These are high-confidence correctness probes because the expected behavior is architectural and not merely environment-specific.
+
+Timestamp behavior is useful in a different way. \texttt{RDTSC} should be monotonic across immediate consecutive reads, while \texttt{RDTSCP} also returns a processor identifier through TSC\_AUX. Exact TSC\_AUX values can vary across processors and kernels, but consistent synthetic values still provide useful emulator-detection signals.
+
+\subsubsection{SSE Rounding and Machine-State Instructions}
+
+The MXCSR register controls SSE floating-point behavior, including rounding mode. A probe that requests round-down and then converts a floating-point value checks whether the emulator honors this control state. In the current native run, the expected result is \texttt{1}; different results indicate a semantic gap in SSE state handling.
+
+The system-state instructions \texttt{SGDT}, \texttt{SIDT}, \texttt{SLDT}, \texttt{STR}, and \texttt{SMSW} expose descriptor-table or machine-status information. Their exact values are environment-sensitive, but they are valuable fingerprints because emulators often fault, return zero, or synthesize values instead of matching host-native state. Consequently, this report treats arithmetic, fault, and status-word mismatches as stronger correctness evidence, while treating machine-state differences primarily as emulator-identification evidence.
+
+\subsection{Emulation Techniques}
+
+Modern CPU emulators use different execution models. QEMU TCG translates guest instructions to an intermediate representation before generating host-native code \cite{bellard2005qemu}. Blink focuses on compact x86-64 binary execution, Box64 targets x86-64 user programs on non-x86 hosts, and Unicorn exposes a library interface derived from QEMU for controlled instruction execution \cite{unicorn2015}. Other tools such as Icicle, MWEMU, and KUBERA provide shellcode-oriented or analysis-oriented execution paths.
+
+Each model creates different comparison constraints. Full Linux user-mode execution can be compared through process behavior and signal delivery, while shellcode-only execution often uses emulator-specific wrappers and return conventions. Consequently, this project separates process-backed probes from shellcode-backed probes instead of pretending that all backends expose identical evidence.

@@ -1,0 +1,23 @@
+% Implementation and Technical Challenges
+
+\subsection{Implementation Challenges}
+
+The main implementation challenge is that emulator backends do not expose equivalent evidence. Native, QEMU, Blink, and Box64 can use the full fork/signal executor. This means their results are directly comparable as \texttt{ExecResult} values, including signal outcomes for faults. By contrast, Unicorn, Icicle, MWEMU, and KUBERA use shellcode-backed adapters that return through wrapper conventions. These results are still useful, but they are better treated as approximate semantic comparisons rather than literal Linux signal equivalents.
+
+Fault classification also required care. The executor must distinguish probable data-access faults from more interesting decoder, length, and instruction-behavior anomalies. To improve this, the current implementation maps data pages and initializes general-purpose registers with valid pointers, so memory operands are more likely to execute meaningfully before faulting. Moreover, executed-length estimation was improved by distinguishing single-step traps from breakpoint traps.
+
+Backend availability is another practical issue. In this environment, QEMU and Blink helper execution work directly. Box64 support depends on whether the local Box64 runtime can load the Rust helper binary, so it may appear as \texttt{backend\_unavailable\_box64}. Shellcode-backed adapters can also report unsupported instructions or internal emulator errors. Importantly, \texttt{sandsifter\_rs} folds these cases into comparison results instead of aborting the whole scan.
+
+\subsection{\texttt{sandsifter\_rs} Features}
+
+\texttt{sandsifter\_rs} is implemented as a separate Rust binary inside the existing crate. It provides several scan modes: random search for broad sampling, brute-force search for systematic byte ranges, tunnel mode for length-change-driven exploration, and mutation mode for deriving new candidates from seed sequences.
+
+The tool also includes operational features needed for real scans. Multi-worker scanning launches subprocess workers and can partition work by first-byte range. Parallel backend comparison allows a worker to compare a candidate against several emulators. Progress ticks and the TUI make long scans easier to monitor, while anomaly logs and rare-hit logs preserve interesting findings for later reduction. Save/resume state currently works for mutation and tunnel modes, making longer experiments less fragile.
+
+The implementation remains intentionally conservative. Risky instructions are blacklisted by default, including \texttt{syscall}, \texttt{sysenter}, \texttt{int}, \texttt{hlt}, \texttt{cli}, \texttt{sti}, and port-I/O opcodes. In addition, incomplete instruction streams are classified carefully because many such findings are truncated-encoding artifacts rather than genuine hidden instructions. Consequently, the more interesting discovery bucket is \texttt{potential\_hidden\_instruction}, especially when combined with rare-instruction logging.
+
+\subsection{Comparison Workflow}
+
+The deterministic suite and \texttt{sandsifter\_rs} now form a two-stage workflow. First, targeted probes provide stable, explainable evidence for known behaviors. Second, the fuzzer explores unknown instruction sequences and reports anomalies such as backend mismatches, disassembly length mismatches, valid disassembly disagreements, rare instructions, and instructions accepted by the disassembler but rejected by execution.
+
+This design avoids overclaiming from fuzzing output. A backend mismatch discovered by \texttt{sandsifter\_rs} is treated as a lead. Only after reduction and native confirmation should it become a stable correctness claim in the main report matrix.

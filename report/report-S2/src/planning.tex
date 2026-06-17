@@ -1,0 +1,21 @@
+% Planning for Next Semester
+
+\subsection{Finding Reduction}
+
+The most important next step is to use \texttt{sandsifter\_rs} as a discovery engine and then reduce its best findings into deterministic tests. Backend mismatches, rare instruction hits, potential hidden instructions, and disassembly disagreements should be triaged, minimized, and replayed against native hardware. Only stable, explainable findings should be promoted into the main edge-case suite.
+
+\subsection{Expanding Test Coverage}
+
+Next semester, the test suite should expand in three practical directions. First, the implementation should be studied on ARM64, because many real emulator deployments involve cross-architecture execution and because ARM64 hosts are increasingly common on desktop, server, and mobile platforms.
+
+Second, \texttt{sandsifter\_rs} should gain more emulator backends. The current backend comparison already makes the fuzzer useful for discovering suspicious byte sequences, but broader backend support would make it easier to compare more engines automatically and promote interesting findings into deterministic probes.
+
+Third, it would be useful to investigate whether research or evaluation licenses can be obtained for commercial security products that explicitly rely on emulation or sandbox analysis. Kaspersky documents malware detection by emulating execution in a virtual environment \cite{kaspersky-emulator}. ESET states that its in-product sandboxing uses binary translation together with interpreted emulation \cite{eset-whitepaper}. Check Point advertises deep CPU-level emulation for evasive attacks \cite{checkpoint-sandblast}, while Fortinet documents FortiSandbox code emulation for lightweight real-time inspection \cite{fortinet-fortisandbox}. Bitdefender also documents Sandbox Analyzer and HyperDetect as part of its advanced threat-analysis pipeline \cite{bitdefender-sandbox,bitdefender-hyperdetect}. Access to such products would allow the project to compare open-source emulator findings against real commercial security infrastructure.
+
+\subsection{Backend Improvements}
+
+The shellcode-oriented backends are useful, but their results are less directly comparable than Linux process-backed results. Therefore, future work should improve adapter consistency, error reporting, and result normalization for Icicle, Unicorn, MWEMU, and KUBERA. Similarly, Box64 helper execution should be made more robust in environments where the runtime cannot load the Rust helper binary.
+
+\subsection{Upstream and Documentation Work}
+
+The most convincing mismatches should be reported upstream with small reproducers. In particular, Box64's missing \texttt{IDIV} and \texttt{MOVDQA} faults, Blink's \texttt{LAHF} and MXCSR behavior, and QEMU TCG's x87 status-word differences are practical candidates for focused bug reports. Moreover, the final project should document which probes are best for correctness testing and which are best for emulator fingerprinting, thereby helping security researchers choose the right evidence for their use case.

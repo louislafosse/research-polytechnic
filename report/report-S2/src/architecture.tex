@@ -1,0 +1,23 @@
+% Project Overview and Architecture
+
+\subsection{Framework Design}
+
+The updated project keeps the same basic objective as the first semester: compare emulator behavior against native x86-64 hardware. However, the architecture now separates two families of evidence. The first family uses native/Linux user-mode tests, compiled as normal Linux x86-64 processes. The second family uses shellcode-only tests, where raw instruction sequences are executed through emulator-specific runners.
+
+This split is important because not all emulators expose the same execution model. Blink, QEMU user-mode, and Box64 can run process-backed probes, which makes them suitable for comparing Linux signal delivery such as \texttt{SIGFPE} and \texttt{SIGSEGV}. Icicle, Unicorn, MWEMU, and KUBERA are evaluated through shellcode wrappers, which are useful for instruction-level behavior but less exact for Linux process semantics.
+
+The result vocabulary is shared across both paths. A \texttt{Match} means the observed behavior matched native hardware for that probe. A \texttt{Mismatch} means the emulator differed from the native baseline. \texttt{Unsupported} means the backend rejected the probe or does not implement that instruction path. \texttt{Internal bug} means the emulator crashed or panicked internally instead of returning a clean architectural result.
+
+\subsection{Targeted Probe Architecture}
+
+The deterministic suite focuses on small probes with clear expected behavior. Examples include x87 stack overflow, \texttt{LAHF} flag materialization, \texttt{RDTSCP} AUX values, immediate \texttt{RDTSC} monotonicity, signed division overflow, unaligned \texttt{MOVDQA}, empty-stack \texttt{FSTP}, MXCSR round-down, and machine-state instructions such as \texttt{SGDT}, \texttt{SIDT}, \texttt{SLDT}, \texttt{STR}, and \texttt{SMSW}.
+
+In practice, each probe is useful for a different kind of claim. Arithmetic faults and x87 status words provide strong correctness evidence because native behavior is crisp. Machine-state probes provide strong detection evidence because emulators often return synthetic values or fault in recognizable ways. The suite therefore records both types of findings instead of forcing every difference into the same category.
+
+\subsection{\texttt{sandsifter\_rs} Discovery Workflow}
+
+The new \texttt{sandsifter\_rs} component complements targeted testing. It generates candidate x86-64 instruction byte sequences, disassembles them with \texttt{iced-x86}, executes each candidate under a selected baseline backend, and optionally compares the same candidate against multiple emulator backends.
+
+The tool supports random search, brute-force search, tunnel mode inspired by the original Sandsifter injector, and mutation-driven search inspired by the original mutator. It can fan out across multiple workers, partition first-byte ranges, display progress through a lightweight ANSI TUI, save and resume long-running searches, and log rare instruction hits separately. Consequently, it provides a practical path from broad exploration to focused regression tests.
+
+The intended workflow is straightforward: use \texttt{sandsifter\_rs} to discover suspicious byte sequences, reduce the most interesting findings to minimal reproducers, and promote stable findings into the main edge-case suite.

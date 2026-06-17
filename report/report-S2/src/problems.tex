@@ -1,0 +1,17 @@
+% Problems and Opportunities
+
+\subsection{Identified Problems}
+
+The expanded suite confirms that emulator discrepancies are not isolated to one instruction family. In the Linux user-mode comparison, Blink mismatches native hardware on \texttt{LAHF}, MXCSR round-down behavior, and system-state instructions. QEMU TCG is comparatively solid on several arithmetic and fault-delivery probes, but it still mismatches native x87 status-word behavior and returns synthetic machine-state values. Box64 shows the strongest cluster of process-backed correctness issues, including missing \texttt{IDIV} overflow faults, missing unaligned \texttt{MOVDQA} faults, incorrect x87 status words, and a failed TSC monotonicity probe.
+
+The shellcode-only backends reveal a different class of problems. Icicle shows substantial gaps on x87 and MXCSR-sensitive probes. Unicorn is comparatively stable in this harness, but it still differs on x87 status-word behavior and selected machine-state values. MWEMU triggers internal bugs for several probes, which matters because a panic is an operational failure even when no architectural result is returned. KUBERA behaves more like a partial instruction-support environment, with broad unsupported coverage for x87 and machine-state instructions.
+
+These results show why emulator evaluation must distinguish correctness bugs from useful fingerprints. For example, an \texttt{IDIV} overflow that returns a quotient instead of raising \texttt{SIGFPE} is a strong correctness bug. In contrast, descriptor-table values that differ from native hardware may be deliberate synthetic state, but they remain excellent emulator-detection signals.
+
+\subsection{Research Opportunities}
+
+The main opportunity is to turn emulator differences into reusable evidence. Specifically, high-confidence probes can become regression tests for emulator developers and selection criteria for security researchers. Arithmetic, fault, and status-word mismatches are especially valuable because they provide clear native baselines and direct correctness claims.
+
+The second opportunity is discovery. Manual test development can only cover behaviors that are already suspected to be interesting. By contrast, \texttt{sandsifter\_rs} can generate, mutate, and compare many instruction byte sequences across native hardware and emulator backends. Nevertheless, fuzzing findings are only leads at first. The strongest workflow is to discover suspicious candidates with \texttt{sandsifter\_rs}, reduce them to minimal reproducers, and then promote the best cases into deterministic edge-case tests.
+
+Consequently, the project now addresses two related problems: how to compare known CPU corner cases reliably, and how to find new corner cases worth adding to the suite.

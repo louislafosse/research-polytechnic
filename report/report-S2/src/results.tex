@@ -1,0 +1,81 @@
+% Status and Results
+
+\subsection{Native Reference Values}
+
+The current report run used native x86-64 Linux execution as the baseline. The most important reference values were:
+
+\begin{itemize}
+  \item FPU stack overflow: \texttt{0x3a41}
+  \item LAHF flags: \texttt{0x03}
+  \item RDTSCP AUX: \texttt{0x0000000c}
+  \item TSC monotonicity: \texttt{ok}
+  \item IDIV overflow: \texttt{fault:8}
+  \item MOVDQA unaligned: \texttt{fault:11}
+  \item x87 empty \texttt{FSTP}: \texttt{0x0841}
+  \item MXCSR round-down: \texttt{1}
+  \item System-state snapshot: \texttt{SGDT}, \texttt{SIDT}, \texttt{SLDT}, \texttt{STR}, and \texttt{SMSW} returned native values
+\end{itemize}
+
+These values are the baseline used whenever this report says that an emulator matches or mismatches native hardware.
+
+\subsection{Linux User-Mode Comparison}
+
+\begin{center}
+\centering
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+Test & Blink & QEMU TCG & Box64 \\
+\midrule
+FPU stack overflow & Match & Mismatch & Mismatch \\
+LAHF flags & Mismatch & Match & Match \\
+RDTSCP AUX & Mismatch & Mismatch & Mismatch \\
+TSC monotonicity & Match & Match & Mismatch \\
+IDIV overflow fault & Match & Match & Mismatch \\
+MOVDQA unaligned fault & Match & Match & Mismatch \\
+x87 empty FSTP & Match & Mismatch & Mismatch \\
+MXCSR round-down & Mismatch & Match & Match \\
+System-state snapshot & Mismatch & Mismatch & Mismatch \\
+\bottomrule
+\end{tabular}
+
+\textbf{Table:} Native/Linux user-mode comparison results.
+\end{center}
+
+Blink has fewer mismatches than Box64, but its \texttt{LAHF} and MXCSR differences are strong correctness signals. Specifically, Blink returns \texttt{0x0b} for \texttt{LAHF} instead of the native \texttt{0x03}, and it returns \texttt{2} for MXCSR round-down instead of \texttt{1}. Moreover, its system-state behavior is highly fingerprintable because several descriptor-table instructions fault.
+
+QEMU TCG matches several arithmetic and fault-delivery probes, including \texttt{IDIV} overflow and unaligned \texttt{MOVDQA}. Nevertheless, it mismatches native x87 status-word behavior, returning \texttt{0x3800} for FPU stack overflow and \texttt{0x0800} for empty \texttt{FSTP}. Consequently, its most convincing correctness gap in this suite is incomplete x87 exception/status reporting.
+
+Box64 shows the strongest cluster of Linux user-mode semantic inaccuracies. It fails the TSC monotonicity probe, returns a quotient instead of faulting on signed division overflow, completes unaligned \texttt{MOVDQA} instead of faulting, and mismatches both x87 status-word probes. These are high-confidence correctness issues because the native behavior is direct and stable.
+
+\subsection{Shellcode-Only Comparison}
+
+\begin{center}
+\centering
+\small
+\begin{tabular}{@{}lllll@{}}
+\toprule
+Test & Icicle & Unicorn & MWEMU & KUBERA \\
+\midrule
+FPU stack overflow & Mismatch & Mismatch & Internal bug & Unsupported \\
+LAHF flags & Match & Match & Internal bug & Mismatch \\
+RDTSCP AUX & Mismatch & Mismatch & Internal bug & Unsupported \\
+TSC monotonicity & Mismatch & Match & Internal bug & Mismatch \\
+x87 empty FSTP & Mismatch & Mismatch & Mismatch & Unsupported \\
+MXCSR round-down & Mismatch & Match & Mismatch & Mismatch \\
+SLDT & Unsupported & Match & Match & Unsupported \\
+STR & Unsupported & Mismatch & Mismatch & Unsupported \\
+SMSW & Mismatch & Mismatch & Mismatch & Unsupported \\
+\bottomrule
+\end{tabular}
+
+\textbf{Table:} Shellcode-only comparison results.
+\end{center}
+
+Icicle currently shows substantial gaps on x87, MXCSR, TSC monotonicity, and \texttt{SMSW}. Unicorn is the most stable shellcode-oriented backend in this report, matching \texttt{LAHF}, TSC monotonicity, MXCSR round-down, and \texttt{SLDT}, while still differing on x87 status words, \texttt{STR}, and \texttt{SMSW}. MWEMU's main issue is internal instability on several probes, followed by x87, MXCSR, and machine-state mismatches where it does return a value. KUBERA shows broad unsupported coverage and mismatches on the supported \texttt{LAHF}, TSC, and MXCSR probes.
+
+\subsection{Practical Takeaways}
+
+If the goal is emulator detection, the highest-value probes are \texttt{IDIV} overflow, unaligned \texttt{MOVDQA}, x87 empty \texttt{FSTP}, MXCSR round-down, \texttt{LAHF}, and machine-state instructions. If the goal is correctness ranking, Box64 currently shows the strongest cluster of Linux user-mode inaccuracies, Blink has clear \texttt{LAHF} and MXCSR bugs, and QEMU TCG is relatively solid except for x87 status-word fidelity.
+
+Among shellcode-oriented backends, Unicorn is comparatively stable, while MWEMU and KUBERA show the largest combination of instability and unsupported coverage. In practice, \texttt{sandsifter\_rs} should now be used to discover additional suspicious instruction sequences, after which the best findings can be promoted into deterministic probes like the ones summarized above.

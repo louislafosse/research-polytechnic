@@ -33,21 +33,33 @@ jobs:
           sudo apt-get install -y texlive-latex-base texlive-latex-extra texlive-fonts-recommended \
             texlive-bibtex-extra biber latexmk make
           
-      - name: Build Report
+      - name: Build Report S1
         run: |
-          cd report/report
+          cd report/report-S1
           make all
-          
-      - name: Build Slides
+
+      - name: Build Slides S1
         run: |
-          cd report/slides
+          cd report/slides-S1
           make all
-      
+
+      - name: Build Report S2
+        run: |
+          cd report/report-S2
+          make all
+
+      - name: Build Slides S2
+        run: |
+          cd report/slides-S2
+          make all
+
       - name: Rename output files
         run: |
           mkdir -p artifacts
-          cp report/report/build/report.pdf artifacts/report.pdf
-          cp report/slides/build/slides.pdf artifacts/slides.pdf
+          cp report/report-S1/build/report.pdf artifacts/report-S1.pdf
+          cp report/slides-S1/build/slides.pdf artifacts/slides-S1.pdf
+          cp report/report-S2/build/report.pdf artifacts/report-S2.pdf
+          cp report/slides-S2/build/slides.pdf artifacts/slides-S2.pdf
           ls -la artifacts/
       
       - name: Upload artifacts
@@ -104,12 +116,20 @@ jobs:
                 {
                   "assets": [
                     {
-                      "path": "artifacts/report.pdf",
-                      "label": "Report (PDF)"
+                      "path": "artifacts/report-S1.pdf",
+                      "label": "Report S1 (PDF)"
                     },
                     {
-                      "path": "artifacts/slides.pdf",
-                      "label": "Slides (PDF)"
+                      "path": "artifacts/slides-S1.pdf",
+                      "label": "Slides S1 (PDF)"
+                    },
+                    {
+                      "path": "artifacts/report-S2.pdf",
+                      "label": "Report S2 (PDF)"
+                    },
+                    {
+                      "path": "artifacts/slides-S2.pdf",
+                      "label": "Slides S2 (PDF)"
                     }
                   ]
                 }

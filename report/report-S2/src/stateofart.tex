@@ -1,0 +1,17 @@
+% State of the Art
+
+\subsection{Existing Emulators}
+
+The emulator landscape spans diverse implementations targeting different use cases. QEMU is the de facto standard for system and user-mode emulation \cite{bellard2005qemu}. Its Tiny Code Generator provides portable binary translation. Blink takes a different approach by focusing on compact and portable x86-64 execution. Meanwhile, Box64 targets a specialized niche by enabling x86-64 Linux programs to run on ARM64 hosts, which is important for games, desktop applications, and proprietary binaries.
+
+For security research, Unicorn Engine provides a lightweight multi-architecture emulator designed for fine-grained control over CPU state and memory \cite{unicorn2015}. Icicle, MWEMU, and KUBERA are also relevant because they expose instruction or shellcode execution paths useful for binary analysis and malware research. However, these tools do not all expose the same execution model. Some run full Linux processes, while others run shellcode snippets in a synthetic environment.
+
+This distinction matters for evaluation. A Linux process backend can be compared against native signal delivery for \texttt{SIGFPE} or \texttt{SIGSEGV}. A shellcode backend can still reveal instruction support and semantic mismatches, but unsupported results or wrapper-specific return values must be interpreted more carefully.
+
+\subsection{Testing and Fuzzing Methodologies}
+
+Current emulator validation still focuses mainly on functional testing: whether programs execute, whether common applications work, and whether performance is acceptable. These tests are necessary but insufficient for security-relevant accuracy. In particular, they rarely check exact x87 status words, SSE rounding control, or descriptor-table behavior under unusual instruction sequences.
+
+Security-focused testing remains more fragmented. Some work documents anti-emulation techniques used by malware, while other projects use emulation as a fuzzing substrate. For example, afl-unicorn combines AFL fuzzing with Unicorn Engine to fuzz arbitrary binary code \cite{aflunicorn2017}. Sandsifter takes a different direction by fuzzing the x86 instruction set itself to discover hidden instructions, decoder anomalies, and hardware bugs \cite{domas2017sandsifter}.
+
+The current project combines both ideas. The deterministic edge-case suite provides crisp native-vs-emulator comparisons for known behaviors. \texttt{sandsifter\_rs} complements this by searching the instruction space for new suspicious byte sequences. Consequently, the project is no longer only a fixed benchmark; it is also a discovery pipeline for future benchmarks.

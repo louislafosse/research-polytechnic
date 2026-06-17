@@ -1,0 +1,17 @@
+% Conclusion
+
+\subsection{Summary}
+
+This research evaluates CPU emulator accuracy for security-relevant x86-64 corner cases. During the second semester, the project expanded from preliminary probes to a broader comparison covering x87 status words, flags, timestamp behavior, arithmetic and SSE faults, MXCSR rounding, and machine-state instructions. The results show that every tested emulator differs from native hardware in at least one meaningful way.
+
+\subsection{Implications}
+
+Security researchers should validate emulator-based findings on native hardware whenever precise CPU behavior matters. In particular, fault delivery, status-word bits, and rounding-control behavior are strong correctness signals. Machine-state values are sometimes more environment-sensitive, but they remain valuable fingerprints for detecting emulated execution.
+
+For emulator developers, the current probes provide compact regression tests. For security practitioners, the results provide practical guidance: Box64 currently has the strongest cluster of Linux user-mode correctness issues, QEMU TCG's main weakness is x87 status fidelity, Blink has clear flag and MXCSR mismatches, and shellcode-oriented backends vary substantially in stability and instruction support.
+
+\subsection{Closing Thoughts}
+
+The project now has two complementary tools: deterministic edge-case tests for known behaviors and \texttt{sandsifter\_rs} for broader instruction-space discovery. This combination is important because emulator accuracy problems are both known and unknown. Known problems require stable, explainable tests. Unknown problems require fuzzing, reduction, and careful interpretation.
+
+As emulation becomes increasingly central to malware analysis, exploit development, and binary research, understanding its limitations becomes essential. The current work contributes a practical methodology for doing that: compare against native hardware, separate correctness bugs from fingerprints, and turn discovery findings into reproducible tests.
