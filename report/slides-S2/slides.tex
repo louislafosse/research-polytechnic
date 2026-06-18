@@ -136,56 +136,57 @@
   \end{itemize}
 \end{frame}
 
-\begin{frame}{Example probe: \texttt{IDIV} overflow}
+\begin{frame}{Example probe: x87 FPU overflow}
   \vspace{-0.15cm}
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.56\textwidth}
       \centering
       \begin{tikzpicture}[font=\scriptsize, every node/.style={align=center}]
-        \node[draw,minimum width=2.8cm,minimum height=0.55cm,fill=PrismBlue!6]
-          (rax) at (0,2.0) {\textbf{RAX}\\\texttt{0x8000...0000}};
-        \node[draw,minimum width=2.8cm,minimum height=0.55cm,fill=PrismBlue!6]
-          (rdx) at (0,1.25) {\textbf{RDX}\\\texttt{0x0000...0000}};
-        \node[draw,minimum width=2.8cm,minimum height=0.55cm,fill=PrismBlue!6]
-          (div) at (0,0.25) {\textbf{divisor}\\\texttt{-1}};
+        % Stack boxes (top to bottom)
+        \foreach \i in {0,...,7} {
+          \pgfmathtruncatemacro{\y}{7-\i}
+          \node[draw,rounded corners,minimum width=2.6cm,minimum height=0.45cm,fill=PrismBlue!6]
+            (st\i) at (0,0.55*\y) {ST(\i)};
+        }
 
-        \node[draw,minimum width=3.0cm,minimum height=0.75cm,fill=red!8]
-          (idiv) at (3.4,1.1) {\textbf{\texttt{IDIV}}\\signed divide};
+        % Indicate 8th is full
+        \node[anchor=west] at (1.55,0.55*7) {\textit{8-level stack}};
 
-        \draw[-{Latex[length=2mm]},thick] (rax.east) -- (idiv.west);
-        \draw[-{Latex[length=2mm]},thick] (rdx.east) -- (idiv.west);
-        \draw[-{Latex[length=2mm]},thick] (div.east) -- (idiv.west);
+        % "9th push" arrow
+        \draw[-{Latex[length=2mm]},thick,red] (0,0.55*9.6) -- (0,0.55*8.7)
+          node[pos=0,above,black] {\textbf{9th push (e.g., 9\texttimes\,\texttt{FLD1})}}
+          node[pos=1,below,red] {\textbf{overflow}};
 
-        \node[draw,minimum width=3.2cm,minimum height=0.65cm,fill=green!10]
-          (native) at (3.4,-0.25) {native hardware\\\textbf{\texttt{SIGFPE}}};
-        \node[draw,minimum width=3.2cm,minimum height=0.65cm,fill=orange!12]
-          (wrong) at (3.4,-1.15) {wrong behavior\\returns quotient};
-
-        \draw[-{Latex[length=2mm]},thick,green!50!black] (idiv.south) -- (native.north);
-        \draw[-{Latex[length=2mm]},thick,orange!80!black] (native.south) -- (wrong.north);
+        % TOP pointer example
+        \draw[-{Latex[length=2mm]},thick] (-1.55,0.55*0.08) -- (-0.95,0.55*0.08);
+        \node[anchor=east] at (-1.55,0.55*0.08) {TOP=7};
       \end{tikzpicture}
 
       \vspace{0.3em}
       \scriptsize
-      Test idea: divide the smallest signed integer by \texttt{-1}. The mathematical
-      result cannot be represented in 64 bits.
+      Example test:\;\texttt{finit; fld1 (\texttimes 9); fnstsw ax}
     \end{column}
 
     \begin{column}{0.44\textwidth}
-      \begin{block}{What native hardware reports}
+      \begin{block}{FPU status word bits set on overflow}
         \scriptsize
-        \texttt{IDIV} overflow raises a divide-error exception, delivered by Linux as
-        \textbf{\texttt{SIGFPE}}.
+        \begin{tabular}{@{}ll@{}}
+          \textbf{IE} (bit 0)  & Invalid Operation = 1 \\
+          \textbf{SF} (bit 6)  & Stack Fault = 1 \\
+          \textbf{C1} (bit 9)  & Overflow direction = 1 \\
+          \textbf{TOP} (11--13)& Updated stack top (e.g., 7) \\
+        \end{tabular}
 
-        \vspace{0.6em}
-        Expected result: \textbf{\texttt{fault:8}}
+        \vspace{0.4em}
+        Expected (native): \textbf{\texttt{0x3a41}}
       \end{block}
 
       \vspace{0.2em}
+      Observed differences:
       \begin{itemize}
-        \item QEMU and Blink matched native behavior in this probe
-        \item Box64 returned a quotient instead of faulting
-        \item This is a strong correctness bug because the native baseline is simple
+        \item Native + Blink: \textbf{correct} overflow detection
+        \item QEMU / Box64 / Unicorn: \textbf{missing} overflow flags (e.g., \texttt{0x3800})
+        \item Icicle: no FPU (\texttt{0x0000}); MWEMU panics; KUBERA unsupported
       \end{itemize}
     \end{column}
   \end{columns}
